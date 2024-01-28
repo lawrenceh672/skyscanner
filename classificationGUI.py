@@ -1,4 +1,4 @@
-from DB_utilities import bbdb
+from SkyScanner_DB import bbdb
 import cv2
 import threading
 from pynput.keyboard import Key, Listener

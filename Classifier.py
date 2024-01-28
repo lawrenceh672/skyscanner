@@ -1,5 +1,5 @@
 import datetime
-from DB_utilities import bbdb
+from SkyScanner_DB import bbdb
 import cv2
 from pynput.keyboard import Key
 from Globals import Globals

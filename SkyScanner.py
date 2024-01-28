@@ -5,14 +5,14 @@
 import cv2
 from BirdBuddy import *
 from cameras import Camera
-from DB_utilities import bbdb
+from DBThread import DB
 from BBVideo import *
 from Inputt import *
 import math
 from parameters import Parameters
 from workerthreads import *
 from Classifier import Classifier  #Handles the classifier selection, retrieval and storing to DB
-from Globals import Globals, threads
+from Globals import Globals
 import matplotlib.pyplot as plt
 import matplotlib
 from PIL import Image
@@ -21,42 +21,46 @@ import pandas as pd
 import os
 
 #Set the global variables inside one global variable called Globals
-inputt = Inputt()
-Globals.set("inputt",inputt) #The interface =
+try:
+	inputt = Inputt()
+	Globals.set("inputt",inputt) #The interface =
 
-dbFileName = "bbdb.db"
-db = bbdb(dbFileName) #Create the container class for the birdbuddy database
-Globals.set("DB", dbFileName) #"The database connection"
+	dbFileName = "bbdb.db"
+	db = bbdb(dbFileName) #Create the container class for the birdbuddy database
+	Globals.set("DB", dbFileName) #"The database connection"
 
-currentSession = db.getNewestSessionPath() #A global variable to see what session were working on, the path to its saved files the key to the database
-Globals.set("Camera Session", currentSession) #The camera session file path
+	currentSession = db.getNewestSessionPath() #A global variable to see what session were working on, the path to its saved files the key to the database
+	Globals.set("Camera Session", currentSession) #The camera session file path
 
-bb = None #A BirdBuddy Object to handle motion tracking
-Globals.set("BirdBuddy", bb) #"The movement tracking algorithm, saved to the database"
+	bb = None #A BirdBuddy Object to handle motion tracking
+	Globals.set("BirdBuddy", bb) #"The movement tracking algorithm, saved to the database"
 
-bbv = BBVideo(db, currentSession)  #Hold the tracking information from a BB processed video in memory
-Globals.set("BB Video Results", bbv) #BirdBuddy results database to python object for analysis
+	bbv = BBVideo(db, currentSession)  #Hold the tracking information from a BB processed video in memory
+	Globals.set("BB Video Results", bbv) #BirdBuddy results database to python object for analysis
 
-classifier = Classifier("test") #A Classifier object to hold samples and generate classifiers, and to run the classifier on other sessions
-Globals.set("Classifier", classifier) #The classification sample extractor and analyzer object for the current classification under use
+	classifier = Classifier("test") #A Classifier object to hold samples and generate classifiers, and to run the classifier on other sessions
+	Globals.set("Classifier", classifier) #The classification sample extractor and analyzer object for the current classification under use
 
-Root_Path = "d:\\cameraupload\\" #Base directory for all files
-Globals.set("Root Path", Root_Path)
+	Root_Path = "d:\\cameraupload\\" #Base directory for all files
+	Globals.set("Root Path", Root_Path)
 
-#Start the camera selection list
-cameras = []
-#add the webcam
-c = Camera()
-c.name = 'WEBCAM'
-cameras.append(c)
-#Add cameras from the database
-df = db.getListofCameras()
-for row in df.itertuples():
+	#Start the camera selection list
+	cameras = []
+	#add the webcam
 	c = Camera()
-	c.name = row.NAME
-	c.URL = row.RTSP_URL
+	c.name = 'WEBCAM'
 	cameras.append(c)
-Globals.set("Cameras", cameras)
+	#Add cameras from the database
+	df = db.getListofCameras()
+	for row in df.itertuples():
+		c = Camera()
+		c.name = row.NAME
+		c.URL = row.RTSP_URL
+		cameras.append(c)
+	Globals.set("Cameras", cameras)
+except Exception as e:
+	print(f"Globals failed exception {e}")
+	print(f"inputt {Globals}")
 
 #define the functions to link to a menu option
 #TODO add a file transfer speed utility
@@ -444,40 +448,40 @@ def root(): #A welcome screen outputted initially
 	return ["Welcome to Sky Scanner.\nThis bottom part is the output screen\nThe top part is what functions you can use\nSelect one of the above options."]
 
 #Setup the basic menu structure and the functions each option goes to
-inputt.addMenuItem([], name = "Sky Scanner Root Menu Alpha", func = root)
-inputt.addMenuItem(['1'] , name = "Toggle Camera", func = toggleCamera) #Tuples need 2 elements so the main menu gets a blank one
-inputt.addMenuItem(['2'], name = "Database Menu", func = root2)
-inputt.addMenuItem(['2', '1'], name = "Reset Database", func = resetDB)
-inputt.addMenuItem(['2', '2'], name = "Switch Database", func = switchDB)
-inputt.addMenuItem(['3'], name = "Status", func = root3)
-inputt.addMenuItem(['3', '1'], name = "Globals", func = globalsStatus)
-inputt.addMenuItem(['3', '2'], name = "Threads", func = threadsStatus)
-inputt.addMenuItem(['4'], name = "Camera Session: None", func = root4)
-inputt.addMenuItem(['4', '1'], name = "Select Camera Session:", func = selectCameraSession)
-inputt.addMenuItem(['4', '2'], name = "Delete Camera Session", func = deleteCameraSession)
-inputt.addMenuItem(['4', '2', 'y'], name = "Confirm camera session deletion", func = confirmDeleteCameraSession)
-inputt.addMenuItem(['4', '3'], name = "Play back camera session", func = playBack)
-inputt.addMenuItem(['4', '4'], name = "Load video file", func = Load_Video_File)
-inputt.addMenuItem(['5'], name = "BBVideo: Select camera session", func = root5)
-inputt.addMenuItem(['5', '1'], name = "Browse video data visualization", func = bbvDataViz)
-inputt.addMenuItem(['5', '2'], name = "Run BirdBuddy", func = BBProcess)
-inputt.addMenuItem(['6'], name = "User Classifications Menu", func = root6)
-inputt.addMenuItem(['6', '1'], name = "Add classification sample", func = selectClassifierSample)
-inputt.addMenuItem(['6', '1', '1'], name = "Jump to Frame", func = classifierJumpToFrame)
-inputt.addMenuItem(['6', '1', '<-'], name = "Go down one frame", func = classifierGoDownOneFrame)
-inputt.addMenuItem(['6', '1', '->'], name = "Go up one frame", func = classifierGoUpOneFrame)
-inputt.addMenuItem(['6', '1', 'k'], name = "Select ROI from frame", func = selectROI)
-inputt.addMenuItem(['6', '1', 'k', 'a'], name = "Accept the ROI and enter it into the database", func = acceptROI)
-inputt.addMenuItem(['6', '2'], name = "Delete classification Samples", func = loadClassificationSamples)
-inputt.addMenuItem(['6', '2', 'a'], name = "Select classification Sample to deleLoad_Video_Filete", func = deleteClassificationSample)
-inputt.addMenuItem(['6', '3'], name = "Delete entire classification", func = deleteClassification)
-inputt.addMenuItem(['6', '4'], name = "Compile classifier", func = compilation)
-inputt.addMenuItem(['6', '4','1'], name = "Start compilation", func = compileClassifier)
-inputt.addMenuItem(['6', '4','2'], name = "Change classifier", func = changeClassifier)
-inputt.addMenuItem(['6', '5'], name = "Output User classification sample images", func = outputSamples)
-inputt.addMenuItem(['6', '6'], name = "Run Object Detection", func = runObjectDetection)
-inputt.addMenuItem(['6', '6','1'], name = "Run MobileNet ", func = MobileNetDetection)
-inputt.addMenuItem(['6', '6','2'], name = "Run Object Detection", func = runObjectDetection)
+inputt.add_menu_item([], name = "Sky Scanner Root Menu Alpha", func = root)
+inputt.add_menu_item(['1'] , name = "Toggle Camera", func = toggleCamera) #Tuples need 2 elements so the main menu gets a blank one
+inputt.add_menu_item(['2'], name = "Database Menu", func = root2)
+inputt.add_menu_item(['2', '1'], name = "Reset Database", func = resetDB)
+inputt.add_menu_item(['2', '2'], name = "Switch Database", func = switchDB)
+inputt.add_menu_item(['3'], name = "Status", func = root3)
+inputt.add_menu_item(['3', '1'], name = "Globals", func = globalsStatus)
+inputt.add_menu_item(['3', '2'], name = "Threads", func = threadsStatus)
+inputt.add_menu_item(['4'], name = "Camera Session: None", func = root4)
+inputt.add_menu_item(['4', '1'], name = "Select Camera Session:", func = selectCameraSession)
+inputt.add_menu_item(['4', '2'], name = "Delete Camera Session", func = deleteCameraSession)
+inputt.add_menu_item(['4', '2', 'y'], name = "Confirm camera session deletion", func = confirmDeleteCameraSession)
+inputt.add_menu_item(['4', '3'], name = "Play back camera session", func = playBack)
+inputt.add_menu_item(['4', '4'], name = "Load video file", func = Load_Video_File)
+inputt.add_menu_item(['5'], name = "BBVideo: Select camera session", func = root5)
+inputt.add_menu_item(['5', '1'], name = "Browse video data visualization", func = bbvDataViz)
+inputt.add_menu_item(['5', '2'], name = "Run BirdBuddy", func = BBProcess)
+inputt.add_menu_item(['6'], name = "User Classifications Menu", func = root6)
+inputt.add_menu_item(['6', '1'], name = "Add classification sample", func = selectClassifierSample)
+inputt.add_menu_item(['6', '1', '1'], name = "Jump to Frame", func = classifierJumpToFrame)
+inputt.add_menu_item(['6', '1', '<-'], name = "Go down one frame", func = classifierGoDownOneFrame)
+inputt.add_menu_item(['6', '1', '->'], name = "Go up one frame", func = classifierGoUpOneFrame)
+inputt.add_menu_item(['6', '1', 'k'], name = "Select ROI from frame", func = selectROI)
+inputt.add_menu_item(['6', '1', 'k', 'a'], name = "Accept the ROI and enter it into the database", func = acceptROI)
+inputt.add_menu_item(['6', '2'], name = "Delete classification Samples", func = loadClassificationSamples)
+inputt.add_menu_item(['6', '2', 'a'], name = "Select classification Sample to deleLoad_Video_Filete", func = deleteClassificationSample)
+inputt.add_menu_item(['6', '3'], name = "Delete entire classification", func = deleteClassification)
+inputt.add_menu_item(['6', '4'], name = "Compile classifier", func = compilation)
+inputt.add_menu_item(['6', '4','1'], name = "Start compilation", func = compileClassifier)
+inputt.add_menu_item(['6', '4','2'], name = "Change classifier", func = changeClassifier)
+inputt.add_menu_item(['6', '5'], name = "Output User classification sample images", func = outputSamples)
+inputt.add_menu_item(['6', '6'], name = "Run Object Detection", func = runObjectDetection)
+inputt.add_menu_item(['6', '6','1'], name = "Run MobileNet ", func = MobileNetDetection)
+inputt.add_menu_item(['6', '6','2'], name = "Run Object Detection", func = runObjectDetection)
 
 
 #<- Go one frame down
@@ -506,40 +510,14 @@ def stopWatchStop():
 	stopWatchEndTime = curr_dt.timestamp()
 	return stopWatchEndTime - stopWatchStartTime
 
-#Main loop
-#process user input, print output to screen
-#update status
-#print the menu prompt
-#get the user input
+#The inputt main loop update menu to show current state, process the current menu item, and get the next line of input
 while True:
-	#Update the status of the menu system to show context sensitve information
-	status()
-	#Process the input, the first input is the root menu automatically
-	output = inputt.outputProcessed()
+	db.flush_command_buffer()
+	inputt.outputt()
 	if inputt.endProgram:
 		break
-	inputt.updatePrompt("{} processed.  Output {}".format(inputt.menuLevel, output))
-	inputt.updatePrompt("{} time elapsed".format(stopWatchStop()))
-	#Get the next line of input from the user, and run it against the current menu system for an outut
 	userInput = inputt.nextLine()
-	stopWatchStart()
-	print("User entered {}".format(userInput))
-	"""
-	status() #Update the context sensitive screens
-	inputt.printMenu() #output the current user prompt/information screen
-	if inputt.nextLine(): # a line has been answered
-		#User has entered input  lets process it and turn off the keyboard listener until were ready for input
-		successful = inputt.outputProcessed() #Let the input class know we've handled the user's input and run a function if supplied, otherwise just print out the next menu level
-		print("{} returned {}".format(inputt.menuLevel, successful))
-	"""
-#Start stopping the threads
-threadsI = threads.iterable()
-for thread in threadsI:
-	thread.stop()
-inputt.stop()
-for c in cameras:
-	c.shutDown()
-if bb is not None: #Finish up any BB processing
-	print("finishing BB algorithm")
-	while bb.BBThread.finished == False:
-		pass #Wait for it to finish
+
+#Shut down the running threads
+for rt in threads.iterable():
+	rt.stop()

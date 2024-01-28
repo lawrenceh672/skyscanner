@@ -1,6 +1,6 @@
 import threading
 from parameters import Parameters
-from DB_utilities import bbdb
+from SkyScanner_DB import bbdb
 from imutils.video import FileVideoStream
 from Globals import Globals
 import cv2

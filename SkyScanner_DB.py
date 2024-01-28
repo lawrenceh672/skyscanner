@@ -9,8 +9,9 @@ from PIL import Image
 from io import BytesIO
 import cv2
 
+from DBThread import DB
 
-class bbdb:
+class bbdb(DB):
 	def __init__(self,dbFileName):
 		self.db = sqlite3.connect(dbFileName)
 		self.dbFileName = dbFileName

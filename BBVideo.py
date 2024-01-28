@@ -7,7 +7,7 @@ from io import BytesIO
 from imutils.video import FileVideoStream
 import matplotlib.pyplot as plt
 from Globals import Globals
-from DB_utilities import bbdb
+from SkyScanner_DB import bbdb
 
 class VideoFileMetaInformation():
 	#A class to store meta information about a file in the file system
